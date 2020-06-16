@@ -3,33 +3,47 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"os"
 )
 
 func main() {
 
-	var pipelineNames []pipelineApp
-	pipelineBytes, err := getPipelineName()
-	err = json.Unmarshal(pipelineBytes, &pipelineNames)
+	var pJSON pipelineJSON
+	var pipelineNameJSON pipelineAppNames
+
+	data, err := getPipelineName()
+	if err != nil {
+		fmt.Printf("An error occured with the HTTP responce: %v", err)
+		os.Exit(1)
+	}
+	pipelineNames, err := ioutil.ReadAll(data.Body)
 	if err != nil {
 		fmt.Printf("An error occured: %v", err)
-
+	}
+	pipelineNameJSON.getJSONfromPipelineName(pipelineNames)
+	if err != nil {
+		fmt.Printf("An error occured while parseing Pipeline App JSON: %v", err)
 	}
 
-	var pJSON pipelineJSON
+	path, err := makeDir()
+	if err != nil {
+		fmt.Printf("An error occured while making directory: %v", err)
+	}
 
-	path := makeDir()
-	for k := range pipelineNames {
-		fmt.Println(pipelineNames[k].Name)
-		dataBytes, err := getPipelineJSON(pipelineNames[k].Name)
-		err = json.Unmarshal(dataBytes, &pJSON)
+	for k := range pipelineNameJSON.pipelineApp {
+		dataBytes, err := getPipelineJSON(pipelineNameJSON.pipelineApp[k].Name)
 		if err != nil {
-			fmt.Printf("An error occured: %v ", err)
+			fmt.Printf("An error occured getting Pipeline JSON: %v ", err)
 			os.Exit(1)
 		}
+		err = json.Unmarshal(dataBytes, &pJSON)
 		if err != nil {
-			fmt.Println(err)
+			fmt.Printf("An error occired parsing Pipeline JSON: %v", err)
 		}
-		writeJSONtoFile(dataBytes, pipelineNames[k].Name, path)
+		err = pJSON.writeJSONtoFile(pipelineNameJSON.pipelineApp[k].Name, path)
+		if err != nil {
+			fmt.Printf("An error occured while writing JSON to file: %v", err)
+		}
 	}
 }
