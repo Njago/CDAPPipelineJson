@@ -44,7 +44,7 @@ func getPipelineName() (*http.Response, error) {
 	return response, err
 }
 
-func (pa *pipelineAppNames) getJSONfromPipelineName(pipelineNames []byte) error {
+func (pa *pipelineAppNames) getPipelineNameJSON(pipelineNames []byte) error {
 
 	err := json.Unmarshal(pipelineNames, &pa.pipelineApp)
 	if err != nil {
@@ -79,7 +79,7 @@ type plugins struct {
 	Type string `json:"type"`
 }
 
-func getPipelineJSON(pipelinename string) ([]byte, error) {
+func getPipelineJSON(pipelinename string) (*http.Response, error) {
 
 	URL := "http://localhost:11015/v3/namespaces/default/apps/" + pipelinename
 	client := &http.Client{}
@@ -91,16 +91,17 @@ func getPipelineJSON(pipelinename string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+	return res, nil
+}
 
-	pipelineJSON, err := ioutil.ReadAll(res.Body)
+func (pj *pipelineJSON) getPipelineJSONFromName(pipelineNames []byte) error {
 
-	//Error handing for err messages
+	err := json.Unmarshal(pipelineNames, &pj)
 	if err != nil {
-		fmt.Println(res.StatusCode)
-		return nil, err
+		fmt.Printf("An error occured when unmarshaling : %v", err)
+		return err
 	}
-
-	return pipelineJSON, nil
+	return nil
 }
 
 func (pj *pipelineJSON) writeJSONtoFile(filename string, path string) error {

@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -21,11 +20,10 @@ func main() {
 	if err != nil {
 		fmt.Printf("An error occured: %v", err)
 	}
-	pipelineNameJSON.getJSONfromPipelineName(pipelineNames)
+	pipelineNameJSON.getPipelineNameJSON(pipelineNames)
 	if err != nil {
 		fmt.Printf("An error occured while parseing Pipeline App JSON: %v", err)
 	}
-
 	path, err := makeDir()
 	if err != nil {
 		fmt.Printf("An error occured while making directory: %v", err)
@@ -37,9 +35,16 @@ func main() {
 			fmt.Printf("An error occured getting Pipeline JSON: %v ", err)
 			os.Exit(1)
 		}
-		err = json.Unmarshal(dataBytes, &pJSON)
+		pipelineJSON, err := ioutil.ReadAll(dataBytes.Body)
 		if err != nil {
-			fmt.Printf("An error occired parsing Pipeline JSON: %v", err)
+			fmt.Printf("An error occured parsing Pipeline JSON: %v ", err)
+			os.Exit(1)
+		}
+
+		err = pJSON.getPipelineJSONFromName(pipelineJSON)
+		if err != nil {
+			fmt.Printf("An error occured getting JSON with App Name: %v ", err)
+			os.Exit(1)
 		}
 		err = pJSON.writeJSONtoFile(pipelineNameJSON.pipelineApp[k].Name, path)
 		if err != nil {
