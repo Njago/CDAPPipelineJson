@@ -9,6 +9,10 @@ import (
 	"path/filepath"
 )
 
+type pipelineAppNames struct {
+	pipelineApp []pipelineApp
+}
+
 //Struct for Pipeline Names Json
 type pipelineApp struct {
 	Type        string `json:"type"`
@@ -24,26 +28,30 @@ type artifact struct {
 	Scope   string `json:"scope"`
 }
 
-func getPipelineName() ([]byte, error) {
+func getPipelineName() (*http.Response, error) {
 
-	url := os.ExpandEnv("${CDAP_ENDPOINT}/v3/namespaces/" + os.ExpandEnv("${NAMESPACE}/apps"))
+	url := os.ExpandEnv("http://localhost:11015/v3/namespaces/default/apps")
 	request, err := http.NewRequest("GET", url, nil)
 	if err != nil {
-		fmt.Printf("An error occured: %v", err)
+		return nil, err
 	}
 	client := &http.Client{}
 	response, err := client.Do(request)
 	if err != nil {
-		fmt.Printf("An error occured: %v", err)
+		return nil, err
 	}
-	pipelineNames, err := ioutil.ReadAll(response.Body)
+
+	return response, err
+}
+
+func (pa *pipelineAppNames) getPipelineNameJSON(pipelineNames []byte) error {
+
+	err := json.Unmarshal(pipelineNames, &pa.pipelineApp)
 	if err != nil {
-		fmt.Printf("An error occured: %v", err)
+		fmt.Printf("An error occured when unmarshaling PA: %v", err)
+		return err
 	}
-
-	defer response.Body.Close()
-
-	return pipelineNames, err
+	return nil
 }
 
 //Struct for Pipeline Json
@@ -71,56 +79,57 @@ type plugins struct {
 	Type string `json:"type"`
 }
 
-func getPipelineJSON(pipelinename string) ([]byte, error) {
+func getPipelineJSON(pipelinename string) (*http.Response, error) {
 
-	URL := os.ExpandEnv("${CDAP_ENDPOINT}/v3/namespaces/"+os.ExpandEnv("${NAMESPACE}/apps/")) + pipelinename
+	URL := "http://localhost:11015/v3/namespaces/default/apps/" + pipelinename
 	client := &http.Client{}
 	request, err := http.NewRequest("GET", URL, nil)
 	if err != nil {
-		fmt.Println(err)
+		return nil, err
 	}
 	res, err := client.Do(request)
 	if err != nil {
-		fmt.Println(err)
+		return nil, err
 	}
-
-	pipelineJSON, err := ioutil.ReadAll(res.Body)
-
-	//Error handing for err messages
-	if err != nil {
-		fmt.Printf("Http request failed with error %s\n", err.Error())
-		fmt.Println(res.StatusCode)
-	}
-
-	return pipelineJSON, err
+	return res, nil
 }
 
-func writeJSONtoFile(data []byte, filename string, path string) {
+func (pj *pipelineJSON) getPipelineJSONFromName(pipelineNames []byte) error {
+
+	err := json.Unmarshal(pipelineNames, &pj)
+	if err != nil {
+		fmt.Printf("An error occured when unmarshaling : %v", err)
+		return err
+	}
+	return nil
+}
+
+func (pj *pipelineJSON) writeJSONtoFile(filename string, path string) error {
 
 	// dir is directory where you want to save file.
 	dst, err := os.Create(filepath.Join(path, filepath.Base(filename)))
 	if err != nil {
-		fmt.Println(err)
+		return err
 	}
 	defer dst.Close()
 
-	dataj, err := json.MarshalIndent(data, "", " ")
+	dataj, err := json.MarshalIndent(pj, "", " ")
 	if err != nil {
-		fmt.Println(err)
+		return err
 	}
-	err = ioutil.WriteFile(filepath.Join(path,
-		filepath.Base(filename)), dataj, 0644)
+	err = ioutil.WriteFile(filepath.Join(path, filepath.Base(filename)), dataj, 0644)
 	if err != nil {
-		fmt.Println(err)
+		return err
 	}
+	return nil
 }
 
-func makeDir() string {
-	namespace := os.ExpandEnv("${NAMESPACE}")
+func makeDir() (string, error) {
+	namespace := os.ExpandEnv("default")
 	newpath := filepath.Join("pipelines/" + namespace + "/")
-	err := os.MkdirAll(newpath, 0755)
+	err := os.MkdirAll(newpath, 0744)
 	if err != nil {
-		fmt.Println(err)
+		return "", err
 	}
-	return newpath
+	return newpath, nil
 }
